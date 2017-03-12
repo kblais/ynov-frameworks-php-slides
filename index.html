@@ -228,7 +228,7 @@ Définition d'après [Wikipedia](https://fr.wikipedia.org/wiki/Framework)
 - Une fois Composer installé :
 
     ```bash
-    $ composer create-projet laravel/laravel
+    $ composer create-project laravel/laravel
     ```
 
 - Pour lancer l'application :
@@ -431,7 +431,7 @@ Route::get('hello', function () {
 - On ajoute une nouvelle route qui pointe vers cette action :
 
     ```php
-    Route::get('hello', 'PageController@index');
+    Route::get('hello', 'PageController@hello');
     ```
 
 ???
@@ -551,6 +551,8 @@ Fichier `resources/views/hello.blade.php` :
 
     ```html
     @extends('layout')
+
+
 
     @section('content')
         <h1>Hello world</h1>
