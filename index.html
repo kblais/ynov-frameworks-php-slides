@@ -617,6 +617,49 @@ Fichier `resources/views/hello.blade.php` :
     - `timestamps()` : géré nativement, désactivable dans le modèle
     - `string()` : possibilité de donner la taille du varchar en second paramètre
 
+---
+
+# Laravel - Les migrations
+
+## Fonctionnement :
+
+- Une table en base de données recense les migrations déjà réalisées, et le "batch" dans lesquelles elles ont été réalisées
+- Appliquer les migrations : `php artisan migrate` (méthode `up`)
+- Annuler un batch de migrations : `php artisan migrate:rollback` (méthode `down`)
+- Annuler toutes les migrations et les relancer : `php artisan migrate:refresh`
+
+---
+
+# Laravel - Insérer des données
+
+- Dans la console : `php artisan tinker`
+- Pour créer un objet user :
+
+    ```php
+    App\User::create([
+        'name' => 'Killian Blais',
+        'email' => 'killian.blais@startup-palace.com',
+        'password' => bcrypt('killian'),
+    ]);
+    ```
+
+- Pour récupérer tous les utilisateurs :
+
+    ```php
+    App\User::get();
+    ```
+
+- Pour récupérer un utilisateur en particulier :
+
+    ```php
+    App\User::find(1);
+    ```
+
+???
+
+- tinker :
+    - invite de commande PHP
+    - Permet d'avoir une application initialisée par Laravel
 
     </textarea>
     <script src="remark.min.js"></script>
