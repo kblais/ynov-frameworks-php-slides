@@ -1191,16 +1191,123 @@ Article/Comment/StoreRequest`
 
 ---
 
-# Création d'une API HTTP
+# Envoyer des emails
 
-> En informatique, une interface de programmation applicative (souvent désignée par le terme API pour Application Programming Interface) est un ensemble normalisé de classes, de méthodes ou de fonctions qui sert de façade par laquelle un logiciel offre des services à d'autres logiciels. Elle est offerte par une bibliothèque logicielle ou un service web, le plus souvent accompagnée d'une description qui spécifie comment des programmes consommateurs peuvent se servir des fonctionnalités du programme fournisseur.
+Pour cet exemple, nous allons gérer l'envoi d'un email à la création de compte.
 
-[Wikipédia](https://fr.wikipedia.org/wiki/Interface_de_programmation)
+Laravel gère l'envoi des mails de plusieurs manières différentes, soit encréant
+le mail à la volée, soit en utilisant un objet `Mailable`. C'est cette dernière
+que nous allons utiliser.
 
 ---
 
-# REST
+## `Mailables`
 
-> REST (representational state transfer) est un style d'architecture pour les systèmes hypermédia distribués, créé par Roy Fielding en 2000 dans le chapitre 5 de sa thèse de doctorat1. Il trouve notamment des applications dans le World Wide Web.
+- Création d'un objet `Mailable` : `php artisan make:mail UserRegistered`
+- Ce mail aura besoin des infos utilisateurs, on passe donc un utilisateur au
+    constructeur :
 
-[Wikipédia](https://fr.wikipedia.org/wiki/Representational_state_transfer)
+    ```php
+    // Sous le `namespace`:
+    use App\User;
+    ...
+
+    class UserRegistered extends Mailable
+    {
+        public $user;
+
+        public function __construct(User $user)
+        {
+            $this->user = $user;
+        }
+    }
+    ```
+
+- On créé ensuite une vue pour le contenu de notre mail
+    (`resources/views/mails/user/registered.twig`)
+
+---
+
+- `$user` étant définit public dans l'objet Mailable, on pour l'utiliser
+    directement dans la vue :
+
+    ```php
+    <h1>Bienvenue {{ user.name }}</h1>
+    ```
+
+- On explique ensuite à notre Mailable comment construire le mail :
+
+    ```php
+    public function build()
+    {
+        return $this->view('mails.user.registered')
+            ->subject('Merci d\'avoir créé votre compte');
+    }
+    ```
+
+- Pour envoyer le mail :
+
+    ```php
+    Mail::to($user) // L'utilisateur à qui on souhaite envoyer le mail
+        ->send(new UserRegistered($user));
+    ```
+
+---
+
+- Pour envoyer le mail après l'inscription, on modifie le fichier `app/Http/Controllers/Auth/registerController.php` :
+
+    ```php
+    // Sous le namespace
+    use Illuminate\Http\Request;
+    use Mail;
+
+    // Ajout de cette fonction dans la classe
+    // On ne fait que surcharger la méthode, qui existe déjà à l'origine
+    protected function registered(Request $request, $user)
+    {
+        Mail::to($user)
+            ->send(new UserRegistered($user));
+    }
+    ```
+
+- Automatiquement, en passant `$user` à la fonction `to()`, Laravel recherche
+des attributs `email` et `name` pour savoir à qui l'envoyer, et utilise les
+informations d'envoi du fichier `config/mail.php`.
+
+---
+
+- Pour tester, on change le driver d'envoi de mail dans le fichier `.env` :
+
+    ```
+    MAIL_DRIVER=log
+    ```
+
+    Désormais, le contenu des mails est envoyé dans le fichier
+    `storage/logs/laravel.log`.
+
+---
+
+## Mise en queue des mails
+
+Pour éviter un potentiel bloquage de l'expérience utilisateur (en cas
+d'indisponiilité du service d'email par exemple), on peut envoyer les mails dans
+une file d'attente. Laravel inclus une gestion de queue native, donc une via
+base de données.
+
+- Création de la table de file d'attente :
+    `php artisan queue:table && php artisan migrate`
+- Modification dans `app/Mail/UserRegistered.php` pour envoyer le mail en queue :
+
+    ```php
+    class UserRegistered extends Mailable implements ShouldQueue
+    ```
+
+---
+
+- Modification du driver de queue de Laravel dans le `.env` :
+    `QUEUE_DRIVER=database`
+- Pour lancer l'exécution des éléments en file d'attente :
+    `php artisn queue:work`
+
+Suite à une inscription, un mail devrait être envoyé en queue, puis géré par le
+worker.
