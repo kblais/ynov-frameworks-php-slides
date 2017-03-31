@@ -1468,3 +1468,48 @@ Notre API est donc utilisable via ces URLs :
 
 - `localhost:8000/api/article`
 - `localhost:8000/api/article/{slug}`
+
+---
+
+# Déploiement sur Heroku
+
+Heroku est un service permettant de déployer simplement une application web sur
+un serveur, avec un plan gratuit assez intéressant (500h/mois maximum
+gratuitement). Après la création d'un compte, il est nécessaire d'authentifier
+son compte sur sa machine; [suivre ces instructions](https://devcenter.heroku.com/articles/getting-started-with-php#set-up).
+
+Le fonctionnement est simple : Heroku fourni un dépot Git depuis lequel les
+déploiements sont réalisés. Pour envoyer notre code vers Heroku, il suffit donc
+de commit les modifications, puis de les pousser vers Heroku.
+
+---
+
+## Préparation du projet
+
+- Créer l'application sur Heroku depuis la racine du projet : `heroku create`
+- Créer le fichier `Procfile` à la racine du projet :
+
+    ```
+    web: vendor/bin/heroku-php-apache2 public/
+    ```
+
+- Ajouter le fichier au versionning, puis push vers Heroku :
+    `git push heroku master`
+- Définir les variables d'environnement nécessaires :
+    - `heroku config:set APP_KEY=[VOTRE APP_KEY]`
+    - `heroky config:set APP_LOG=errorlog`
+    - `heroku config:set HTTPS=on`
+
+---
+
+## Mise en place de la base de données
+
+Heroku met à disposition une base de données PostgreSQL, bien plus pratique à
+    utiliser que SQLite :
+
+- Activer PostgreSQL comme base de données :
+    - `heroku addons:create heroku-postgresql:hobby-dev`
+    - `heroku config:set DB_CONNECTION=pgsql`
+- Modifier le fichier `config/database.php` (voir [ici](https://github.com/kblais/ynov-frameworks-php/blob/master/config/database.php)),
+    commit et push sur Heroku.
+- Lancer les migrations : `heroku run php /app/artisan migrate`
