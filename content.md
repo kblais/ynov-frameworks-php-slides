@@ -1311,3 +1311,160 @@ base de données.
 
 Suite à une inscription, un mail devrait être envoyé en queue, puis géré par le
 worker.
+
+---
+
+# Gestion d'images
+
+On souhaite ajouter une image de couverture sur les articles.
+
+- Ajout d'une colonne `cover` à la table article :
+    `php artisan make:migration --table=article add_cover_column_to_article`
+
+    ```php
+    // database/migrations/****_**_**_******_add_cover_column_to_article.php
+    public function up()
+    {
+        Schema::table('articles', function (Blueprint $table) {
+            $table->string('cover')->nullable();
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('articles', function (Blueprint $table) {
+            $table->dropColumn('cover');
+        });
+    }
+    ```
+
+---
+
+- Modification de `app/Http/Requests/Article/StoreRequest.php` pour ajouter une
+    règle de validation d'image :
+
+    ```php
+    // Sous le namespace :
+    use Illuminate\Validation\Rule;
+
+    // Dans le tableau retourné par `rules()`
+    'cover' => [
+        'image', // valide le fait que ce qui est passé est une image
+        Rule::dimensions() // Valide les dimensions
+            ->minWidth(400)
+            ->minHeight(100),
+    ],
+    ```
+
+- Modification des traductions dans `resources/lang/fr/validation.php` pour
+    `dimensions` et `image`, et ajout de la traduction pour `cover` dans
+    `attributes`.
+
+---
+
+- Gestion de l'image à l'ajout dans le controller `ArticleController` :
+
+    ```php
+    public function store(StoreRequest $request)
+    {
+        $article = new Article($request->all());
+        $article->author_id = $request->user()->id;
+
+        if ($request->hasFile('cover')) {
+            $file = $request->file('cover');
+            $filename = $file->getClientOriginalName();
+            $file->move(public_path('images'), $filename);
+
+            $article->cover = $filename;
+        }
+
+        $article->save();
+
+        return redirect()->route('article.show', [$article]);
+    }
+    ```
+
+---
+
+- Modification du template de création `resources/views/article/create.twig` :
+    ajout de l'attribut `enctype` et de l'input file
+
+    ```twig
+    <form action="{{ route('article.store') }}" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+        ...
+        <div class="form-group">
+            <label for="ArticleFile">Image de couverture</label>
+            <input type="file" name="cover" id="ArticleFile">
+        </div>
+    </form>
+    ```
+
+La vue de création d'article affiche maintenant un champs pour ajouter un
+fichier, et à la soumission du formulaire le fichier est ajouté dans le dossier
+`public/images` et la valeur de la colonne `cover` est mise à jour avec le nom
+du fichier.
+
+Pour afficher l'image dans notre vue :
+
+`<img src="/images/{{ article.cover }}" alt="">`
+
+---
+
+# Création d'une API
+
+Une API va permettre à un site externe ou une application d'accéder aux
+différents services d'un site web. Dans notre exemple, nous allons donner accès
+simplement à nos articles, via une API JSON (`JavaScript Object Notation`).
+
+- Création d'un nouveau controller :
+    `php artisan make:controller -r -m Article Api/ArticleController`
+- Ajout d'une route ressource référençant ce controlleur dans `routes/api.php` :
+
+    ```php
+    Route::resource('article', 'Api\ArticleController', [
+        'only' => ['index', 'show'],
+    ]);
+    ```
+
+---
+
+## Liste des articles
+
+Modification de la méthode `index` du controlleur :
+
+```php
+public function index()
+{
+    $articles = Article::with('author')
+        ->paginate();
+
+    return response()->json($articles);
+}
+```
+
+## Affichage d'un article
+
+Modification de la méthode `show` du controlleur :
+
+```php
+public function show(Article $article)
+{
+    $article->load('comments.author', 'author');
+
+    return response()->json(compact('article'));
+}
+```
+
+---
+
+## Utilisation
+
+Par défaut, toutes les routes définies dans `api.php` sont préfixées par `/api`.
+De plus, toutes ces URLs sont limitées à 60 appels par minute. Ce paramètre est
+modifiable dans `app/Http/Kernel.php` ligne 40 : `throttle:60,1` (`60` appels
+dans `1` minute).
+
+Notre API est donc utilisable via ces URLs :
+
+- `localhost:8000/api/article`
+- `localhost:8000/api/article/{slug}`
